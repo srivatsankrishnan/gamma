@@ -15,7 +15,13 @@ MAC_AREA_INT8=282
 DEVELOP_MODE=False
 
 class GAMMA(object):
-    def __init__(self,dimension, map_cstr=None, num_pe=64, pe_limit=1024, fitness="latency", constraints=dict(), par_RS=False, l1_size=512, l2_size=108000, NocBW=81920000, offchipBW=81920000, slevel_min=2,slevel_max=2, fixedCluster=0, log_level=2,constraint_class=None,external_mem_cstr=None, use_factor=False,uni_base=True):
+    def __init__(self,dimension, map_cstr=None, num_pe=64, pe_limit=1024, 
+                fitness="latency", constraints=dict(), par_RS=False, l1_size=512,
+                l2_size=108000, NocBW=81920000, offchipBW=81920000, slevel_min=2,
+                slevel_max=2, fixedCluster=0, log_level=2,constraint_class=None,
+                external_mem_cstr=None, use_factor=False,uni_base=True,
+                use_reorder=True, use_growing=True, use_aging=True
+                ):
         super(GAMMA,self).__init__()
         self.dimension = dimension
         self.dimension_dict = {"K":dimension[0], "C":dimension[1], "Y":dimension[2], "X":dimension[3], "R":dimension[4],"S":dimension[5], "T":dimension[6]}
@@ -59,6 +65,11 @@ class GAMMA(object):
         self.L1_bias_template = None
         self.area_pebuf_only=False
         self.external_area_model = False
+
+        # add flags to select or not select the type of operations
+        self.use_reorder = use_reorder
+        self.use_growing = use_growing
+        self.use_aging = use_aging
 
     def reset_hw_parm(self, l1_size=None, l2_size=None, num_pe=None, NocBW=None, map_cstr=None, pe_limit=None,area_pebuf_only=None, external_area_model=None, offchipBW=None):
         if l1_size:
@@ -753,7 +764,9 @@ class GAMMA(object):
                 self.mutate_par(population, alpha=1)
             else:
                 # Perform reorder operation
-                self.swap_order(population, alpha=0.47)
+                if self.use_reorder:
+                    self.swap_order(population, alpha=0.47)
+
                 # Perform mutation operation
                 self.mutate_tile(population, num_mu_loc=3, range_alpha=0.53, alpha=0.53, is_finetune=False)
                 self.mutate_pe(population, alpha=1 if g==0 else 0.5) if self.num_pe<1 else None
@@ -762,9 +775,13 @@ class GAMMA(object):
 
             if self.map_cstr is None:
                 # perform growing operation here
-                self.born_cluster(population, alpha=0.57)
+                if self.use_growing:
+                    self.born_cluster(population, alpha=0.57)
+
                 # perform aging operation here
-                self.kill_cluster(population, alpha=0.27)
+                if self.use_aging:
+                    
+                    self.kill_cluster(population, alpha=0.27)
 
 
             # pop_inj, inj_fitness = self.injection()
