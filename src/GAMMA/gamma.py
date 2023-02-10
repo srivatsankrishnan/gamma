@@ -739,6 +739,8 @@ class GAMMA(object):
             self.elite_fitness = copy.deepcopy(self.fitness[:(len(elite))])
 
             # print(list(zip(self.elite_fitness, elite)))
+            
+            # Cross over operation is performed here
             self.crossover_tile(self.parents, population, alpha=0.57)
             if self.constraint_class == "1000":
                 self.mutate_tile(population, num_mu_loc=3, range_alpha=0.53, alpha=1, is_finetune=False)
@@ -750,14 +752,18 @@ class GAMMA(object):
             elif self.constraint_class == "0001":
                 self.mutate_par(population, alpha=1)
             else:
+                # Perform reorder operation
                 self.swap_order(population, alpha=0.47)
+                # Perform mutation operation
                 self.mutate_tile(population, num_mu_loc=3, range_alpha=0.53, alpha=0.53, is_finetune=False)
                 self.mutate_pe(population, alpha=1 if g==0 else 0.5) if self.num_pe<1 else None
                 self.mutate_par(population, alpha=0.1)
 
 
             if self.map_cstr is None:
+                # perform growing operation here
                 self.born_cluster(population, alpha=0.57)
+                # perform aging operation here
                 self.kill_cluster(population, alpha=0.27)
 
 
