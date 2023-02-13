@@ -1,6 +1,7 @@
 import numpy as np
 import copy, random
 import os
+import sys
 from subprocess import Popen, PIPE
 import pandas as pd
 from multiprocessing.pool import Pool
@@ -20,7 +21,8 @@ class GAMMA(object):
                 l2_size=108000, NocBW=81920000, offchipBW=81920000, slevel_min=2,
                 slevel_max=2, fixedCluster=0, log_level=2,constraint_class=None,
                 external_mem_cstr=None, use_factor=False,uni_base=True,
-                use_reorder=True, use_growing=True, use_aging=True
+                use_reorder=True, use_growing=True, use_aging=True,
+                reorder_alpha=0.5, growing_alpha=0.5, aging_alpha=0.5
                 ):
         super(GAMMA,self).__init__()
         self.dimension = dimension
@@ -70,6 +72,9 @@ class GAMMA(object):
         self.use_reorder = use_reorder
         self.use_growing = use_growing
         self.use_aging = use_aging
+        self.reorder_alpha = reorder_alpha
+        self.growing_alpha = growing_alpha
+        self.aging_alpha = aging_alpha
 
     def reset_hw_parm(self, l1_size=None, l2_size=None, num_pe=None, NocBW=None, map_cstr=None, pe_limit=None,area_pebuf_only=None, external_area_model=None, offchipBW=None):
         if l1_size:
@@ -116,12 +121,19 @@ class GAMMA(object):
 
     def create_genome_with_cstr(self):
         indv = self.create_genome()
+        print('[Debug][Create Genome with Cstr][slevel_min]', self.slevel_min)
         for _ in range(self.slevel_min - 1):
             indv = self.born_cluster_ind(indv)
         self.map_cstr.create_from_constraint(indv, self.fixedCluster, self.dimension_dict)
+        print("[Debug][Create Genome with Cstr][indv]", indv)
+        sys.exit
         return indv
 
     def create_genome(self, uni_base=False,last_cluster_dict=None, l1_bias_template=None):
+        print('[Debug][Create Genome][uni_base]', uni_base)
+        print('[Debug][Create Genome][last_cluster_dict]', last_cluster_dict)
+        print('[Debug][Create Genome][l1_bias_template]', l1_bias_template)
+        print('[Debug][Create Genome][use_factor]]', self.use_factor)
         if uni_base:
             if l1_bias_template:
                 K, C, Y, X, R, S = l1_bias_template
@@ -129,6 +141,9 @@ class GAMMA(object):
                 K,C,Y,X,R,S,T = [1]*len(self.dimension)
         else:
             K,C,Y,X,R,S,T = self.dimension
+            print('[Debug][Create Genome][self.dimension]', self.dimension)
+            print('[Debug][Create Genome][K,C,Y,X,R,S,T]', K,C,Y,X,R,S,T)
+
         if uni_base is False and last_cluster_dict:
             K = last_cluster_dict["K"]
             C = last_cluster_dict["C"]
@@ -148,16 +163,29 @@ class GAMMA(object):
                     sp_sz = random.randint(1, lastcluster_sz)
         else:
             sp_sz = random.randint(1, self.num_pe if self.num_pe > 0 else self.pe_limit)
+            print("[DEBUG][Create Genome][sp_sz]", sp_sz)
         if self.use_factor and not uni_base:
-            df = [["K", np.random.choice(self.dimension_factors["K"]["array"])], ["C",np.random.choice(self.dimension_factors["C"]["array"])], ["Y", np.random.choice(self.dimension_factors["Y"]["array"])],
-                  ["X", np.random.choice(self.dimension_factors["X"]["array"])], ["R",np.random.choice(self.dimension_factors["R"]["array"])], ["S",np.random.choice(self.dimension_factors["S"]["array"])]]
+            df = [["K", np.random.choice(self.dimension_factors["K"]["array"])],
+                ["C",np.random.choice(self.dimension_factors["C"]["array"])],
+                ["Y", np.random.choice(self.dimension_factors["Y"]["array"])],
+                ["X", np.random.choice(self.dimension_factors["X"]["array"])],
+                ["R",np.random.choice(self.dimension_factors["R"]["array"])], 
+                ["S",np.random.choice(self.dimension_factors["S"]["array"])]]
         else:
             if uni_base:
                 df = [["K", K], ["C", C], ["Y", Y],["X", X], ["R", R], ["S", S]]
             else:
-                df = [["K", random.randint(1, K)], ["C", random.randint(1, C)], ["Y", random.randint(1, Y)],["X", random.randint(1, X)], ["R", random.randint(1, R)], ["S", random.randint(1, S)]]
+                df = [["K", random.randint(1, K)],
+                ["C", random.randint(1, C)],
+                ["Y", random.randint(1, Y)],
+                ["X", random.randint(1, X)], 
+                ["R", random.randint(1, R)], 
+                ["S", random.randint(1, S)]]
+
         idx = np.random.permutation(len(df))
+        print("[DEBUG][Create Genome][idx]", idx)
         indv = [[sp, sp_sz]] + [df[i] for i in idx]
+        print("[DEBUG][Create Genome][indv]", indv)
         return indv
 
     def search_loc(self, segment_of_indv, dim):
@@ -505,9 +533,11 @@ class GAMMA(object):
         return ind
 
     def born_cluster_ind(self, ind):
+        print("[DEBUG][born_cluster_ind][slevel_max]", self.slevel_max)
         if (len(ind)) // 7 < self.slevel_max:
             last_cluster_dict = self.scan_indv(ind)
             new_ind = ind + self.create_genome(uni_base=self.uni_base, l1_bias_template=self.L1_bias_template, last_cluster_dict=last_cluster_dict)
+            print("[DEBUG][born_cluster_ind][len(ind)]",new_ind)
             ind = new_ind
         return ind
 
@@ -732,7 +762,8 @@ class GAMMA(object):
         return pop_inj, inj_fitness
 
     def run(self, dimension, stage_idx=0, prev_stage_value=0, num_population=100, num_generations=100, elite_ratio=0.05,
-                       parents_ratio=0.4, ratio_decay=1, num_finetune=1, best_sol_1st=None, init_pop=None, bias=None, uni_base=True, use_factor=False, use_pleteau=False, L1_bias_template=None):
+                       parents_ratio=0.4, ratio_decay=1, num_finetune=1, best_sol_1st=None, init_pop=None, bias=None, uni_base=True, use_factor=False, use_pleteau=False, L1_bias_template=None
+):
         self.init_arguement(dimension=dimension, stage_idx=stage_idx, prev_stage_value=prev_stage_value, num_population=num_population, num_generations=num_generations, elite_ratio=elite_ratio,
                        parents_ratio=parents_ratio, ratio_decay=ratio_decay, num_finetune=num_finetune, best_sol_1st=best_sol_1st, init_pop=init_pop,uni_base=uni_base, use_factor=use_factor, use_pleteau=use_pleteau,L1_bias_template=L1_bias_template)
         pool = Pool(min(self.num_population + self.num_elite, cpu_count()))
@@ -765,7 +796,7 @@ class GAMMA(object):
             else:
                 # Perform reorder operation
                 if self.use_reorder:
-                    self.swap_order(population, alpha=0.47)
+                    self.swap_order(population, alpha=self.reorder_alpha)
 
                 # Perform mutation operation
                 self.mutate_tile(population, num_mu_loc=3, range_alpha=0.53, alpha=0.53, is_finetune=False)
@@ -776,12 +807,12 @@ class GAMMA(object):
             if self.map_cstr is None:
                 # perform growing operation here
                 if self.use_growing:
-                    self.born_cluster(population, alpha=0.57)
+                    self.born_cluster(population, alpha=self.growing_alpha)
 
                 # perform aging operation here
                 if self.use_aging:
                     
-                    self.kill_cluster(population, alpha=0.27)
+                    self.kill_cluster(population, alpha=self.aging_alpha)
 
 
             # pop_inj, inj_fitness = self.injection()
@@ -906,9 +937,11 @@ class GAMMA(object):
             fo.write("}")
 
     def oberserve_maestro(self, indv, num_pe=None, l1_size=None, l2_size=None, NocBW=None, offchipBW=None):
-
+        print("[DEBUG][indv] {}".format(indv))
         m_file = "{}".format(random.randint(0, 2**32))
         self.write_maestro(indv,m_file=m_file)
+        print("[Debug][]m-file",m_file)
+
         if num_pe:
             to_use_num_pe = num_pe
         elif self.num_pe <1:
@@ -926,6 +959,9 @@ class GAMMA(object):
                    "--num_simd_lanes=1", "--l1_size_cstr={}".format(self.l1_size if not l1_size else l1_size),
                    "--l2_size_cstr={}".format(self.l2_size if not l2_size else l2_size), "--print_res=false", "--print_res_csv_file=true", "--print_log_file=false", "--print_design_space=false", "--msg_print_lv=0"]
 
+        print("[DEBUG][Command]", command)
+        import sys
+        #sys.exit()
         process = Popen(command, stdout=PIPE, stderr=PIPE)
         stdout, stderr = process.communicate()
         process.wait()
