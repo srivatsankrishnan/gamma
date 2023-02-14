@@ -26,12 +26,12 @@ if __name__ == "__main__":
     parser.add_argument('--accel_cstr', type=str, default=None, help='Constraint from the HW type configuration of the accelerator under design')
     parser.add_argument('--area_budget', type=float, default=-1, help='The area budget (mm2). Set to -1 if no area upper-bound')
     parser.add_argument('--pe_limit', type=int, default=-1, help='Number of Processing Element budget. Set to -1 if no num_PE upper-bound')
-    parser.add_argument('--use_factor',default=False, action='store_true', help='To only use factor as tile size.')
-    parser.add_argument('--use_reorder', default=True, action='store_true', help='To use reorder operation')
+    parser.add_argument('--use_factor', default=False, action='store_true', help='To only use factor as tile size.')
+    parser.add_argument('--use_reorder',type = str, default='True', help='To use reorder operation')
     parser.add_argument('--reorder_alpha', type=float, default=0.47, help='The alpha for reorder operation')
-    parser.add_argument('--use_growing', default=False, action='store_true', help='To use growing operation')
+    parser.add_argument('--use_growing', type=str, default='False', help='To use growing operation')
     parser.add_argument('--growing_alpha', type=float, default=0.57, help='The alpha for reorder operation')
-    parser.add_argument('--use_aging', default=False, action='store_true', help='To use shrinking operation')
+    parser.add_argument('--use_aging', type=str,default='True', help='To use shrinking operation')
     parser.add_argument('--aging_alpha', type=float, default=0.27, help='The alpha for shrinking operation')
     
     opt = parser.parse_args()
@@ -65,8 +65,9 @@ if __name__ == "__main__":
                f"{f'_FixCl-{opt.fixedCluster}' if opt.fixedCluster>0 else ''}_F1-{opt.fitness1}_GEN-{ opt.epochs}_POP-{opt.num_pop}_Area-{opt.area_budget}_MaxPEs-{opt.pe_limit}" \
                f"{f'_FixedPE-{opt.num_pe}' if opt.num_pe>0 else ''}{f'_L2Size-{opt.l2_size}' if opt.l2_size>0 else ''}" \
                f"{f'_L1Size-{opt.l1_size}' if opt.l1_size>0 else ''}{'_factorOnly' if opt.use_factor else ''}{f'_CostModelCstr-{opt.costmodel_cstr}' if opt.costmodel_cstr else ''}" \
-               f"{f'_UseReorder' if opt.use_reorder else ''}{f'_UseGrowing' if opt.use_growing else ''}{f'_UseAging' if opt.use_aging else ''}" \
-                f"{f'_ReorderAlpha-{opt.reorder_alpha}' if opt.use_reorder else ''}{f'_GrowingAlpha-{opt.growing_alpha}' if opt.use_growing else ''}"
+               f"{f'_UseReorder' if opt.use_reorder=='True' else ''}{f'_UseGrowing' if opt.use_growing=='True' else ''}{f'_UseAging' if opt.use_aging=='True' else ''}" \
+                f"{f'_ReorderAlpha-{opt.reorder_alpha}' if opt.use_reorder=='True' else ''}{f'_GrowingAlpha-{opt.growing_alpha}' if opt.use_growing=='True' else ''}" \
+                f"{f'_AgingAlpha-{opt.aging_alpha}' if opt.use_aging=='True' else ''}" 
     outdir_exp = os.path.join(outdir, exp_name)
     os.makedirs(outdir, exist_ok=True)
     os.makedirs(outdir_exp, exist_ok=True)
