@@ -63,7 +63,8 @@ def train_model(model_defs, input_arg, map_cstr=None, chkpt_file='./chkpt'):
                       l1_size=opt.l1_size,
                       l2_size=opt.l2_size, NocBW=opt.NocBW, offchipBW=opt.offchipBW, slevel_min=opt.slevel_min, slevel_max=opt.slevel_max,
                       fixedCluster=opt.fixedCluster, log_level=opt.log_level, map_cstr=map_cstr,
-                      use_reorder=opt.use_reorder, use_growing=opt.use_factor, use_aging=opt.use_aging)
+                      use_reorder=opt.use_reorder, use_growing=opt.use_factor, use_aging=opt.use_aging,
+                      reorder_alpha = opt.reorder_alpha, growing_alpha=opt.growing_alpha, aging_alpha=opt.aging_alpha)
     constraints = {"area":opt.area_budget* 1e6}
     for dimension in model_defs:
         env.reset_dimension(fitness=fitness, constraints=constraints, dimension=dimension)

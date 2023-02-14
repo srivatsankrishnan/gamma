@@ -126,7 +126,6 @@ class GAMMA(object):
             indv = self.born_cluster_ind(indv)
         self.map_cstr.create_from_constraint(indv, self.fixedCluster, self.dimension_dict)
         print("[Debug][Create Genome with Cstr][indv]", indv)
-        sys.exit
         return indv
 
     def create_genome(self, uni_base=False,last_cluster_dict=None, l1_bias_template=None):
@@ -897,6 +896,7 @@ class GAMMA(object):
         return dimensions
 
     def write_maestro(self, indv, layer_id=0, m_file=None):
+        print("[DEBUG][write_maestro][m_file: {}]", m_file)
         dimensions = [self.dimension]
         with open("{}.m".format(m_file), "w") as fo:
             fo.write("Network {} {{\n".format(layer_id))
@@ -960,12 +960,11 @@ class GAMMA(object):
                    "--l2_size_cstr={}".format(self.l2_size if not l2_size else l2_size), "--print_res=false", "--print_res_csv_file=true", "--print_log_file=false", "--print_design_space=false", "--msg_print_lv=0"]
 
         print("[DEBUG][Command]", command)
-        import sys
-        #sys.exit()
+        
         process = Popen(command, stdout=PIPE, stderr=PIPE)
         stdout, stderr = process.communicate()
         process.wait()
-        os.remove("./{}.m".format(m_file)) if os.path.exists("./{}.m".format(m_file)) else None
+        #os.remove("./{}.m".format(m_file)) if os.path.exists("./{}.m".format(m_file)) else None
         try:
             df = pd.read_csv("./{}.csv".format(m_file))
             layer_name = df[" Layer Number"]
