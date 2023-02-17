@@ -1,6 +1,10 @@
 import os
 import sys
 from subprocess import Popen, PIPE
+import numpy as np
+import pandas as pd
+import random
+from math import ceil
 
 print("Import works!!")
 
@@ -18,6 +22,15 @@ class MasterEnv():
         self.num_pe = num_pe
         self._executable = exe_file
     
+    def compute_area_maestro(self, num_pe, l1_size, l2_size):
+        MAC_AREA_MAESTRO=4470
+        L2BUF_AREA_MAESTRO = 4161.536
+        L1BUF_AREA_MAESTRO = 4505.1889
+        L2BUF_UNIT = 32768
+        L1BUF_UNIT = 64
+        area = num_pe * MAC_AREA_MAESTRO + ceil(int(l2_size)/L2BUF_UNIT)*L2BUF_AREA_MAESTRO + ceil(int(l1_size)/L1BUF_UNIT)*L1BUF_AREA_MAESTRO * num_pe
+        return area
+
 
     def run_maestro(self):
 
@@ -43,7 +56,54 @@ class MasterEnv():
         process = Popen(command, stdout=PIPE, stderr=PIPE)
         stdout, stderr = process.communicate()
         process.wait() 
-        print(stdout)
+        
+        try:
+            df = pd.read_csv("./{}.csv".format(self.mapping_file))
+            layer_name = df[" Layer Number"]
+            runtime = np.array(df[" Runtime (Cycles)"]).reshape(-1, 1)
+            runtime_series = np.array(df[" Runtime (Cycles)"]).reshape(-1, 1)
+            throughput = np.array(df[" Throughput (MACs/Cycle)"]).reshape(-1, 1)
+            energy = np.array(df[" Activity count-based Energy (nJ)"]).reshape(-1, 1)
+            area = np.array(df[" Area"]).reshape(-1, 1)
+            power = np.array(df[" Power"]).reshape(-1, 1)
+            l1_size = np.array(df[" L1 SRAM Size Req (Bytes)"]).reshape(-1, 1)
+            l2_size = np.array(df["  L2 SRAM Size Req (Bytes)"]).reshape(-1, 1)
+            l1_size_series = np.array(df[" L1 SRAM Size Req (Bytes)"]).reshape(-1, 1)
+            l2_size_series = np.array(df["  L2 SRAM Size Req (Bytes)"]).reshape(-1, 1)
+            l1_input_read = np.array(df[" input l1 read"]).reshape(-1, 1)
+            l1_input_write = np.array(df[" input l1 write"]).reshape(-1, 1)
+            l1_weight_read = np.array(df["filter l1 read"]).reshape(-1, 1)
+            l1_weight_write = np.array(df[" filter l1 write"]).reshape(-1, 1)
+            l1_output_read = np.array(df["output l1 read"]).reshape(-1, 1)
+            l1_output_write = np.array(df[" output l1 write"]).reshape(-1, 1)
+            l2_input_read = np.array(df[" input l2 read"]).reshape(-1, 1)
+            l2_input_write = np.array(df[" input l2 write"]).reshape(-1, 1)
+            l2_weight_read = np.array(df[" filter l2 read"]).reshape(-1, 1)
+            l2_weight_write = np.array(df[" filter l2 write"]).reshape(-1, 1)
+            l2_output_read = np.array(df[" output l2 read"]).reshape(-1, 1)
+            l2_output_write = np.array(df[" output l2 write"]).reshape(-1, 1)
+            mac = np.array(df[" Num MACs"]).reshape(-1, 1)
+            
+            activity_count = {}
+            activity_count["l1_input_read"] = l1_input_read
+            activity_count["l1_input_write"] = l1_input_write
+            activity_count["l1_weight_read"] = l1_weight_read
+            activity_count["l1_weight_write"] = l1_weight_write
+            activity_count["l1_output_read"] = l1_output_read
+            activity_count["l1_output_write"] = l1_output_write
+            activity_count["l2_input_read"] = l2_input_read
+            activity_count["l2_input_write"] = l2_input_write
+            activity_count["l2_weight_read"] = l2_weight_read
+            activity_count["l2_weight_write"] = l2_weight_write
+            activity_count["l2_output_read"] = l2_output_read
+            activity_count["l2_output_write"] = l2_output_write
+            activity_count["mac_activity"] = mac
+        except:
+            print("Error in reading csv file")
+        area = self.compute_area_maestro(self.num_pe, self.l1_size, self.l2_size)
+        self.observation = [np.mean(x) for x in [runtime, throughput, energy, area, l1_size, l2_size, mac, power, num_pe]]
+        
+        return runtime, runtime_series, throughput, energy, area, power, l1_size, l2_size, l1_size_series, l2_size_series, activity_count
 
 
 
@@ -59,9 +119,21 @@ if __name__ == "__main__":
         num_pe = 1024
         
         env = MasterEnv(exe_file, mapping_file, noc_bw, offchip_bw, l1_size, l2_size, num_pe)
-        env.run_maestro()
+        runtime, runtime_series, throughput, energy, area, power, l1_size, l2_size, \
+        l1_size_series, l2_size_series, activity_count = env.run_maestro()
 
 
+        print("runtime: ", runtime)
+        print("runtime_series: ", runtime_series)
+        print("throughput: ", throughput)
+        print("energy: ", energy)
+        print("area: ", area)
+        print("power: ", power)
+        print("l1_size: ", l1_size)
+        print("l2_size: ", l2_size)
+        print("l1_size_series: ", l1_size_series)
+        print("l2_size_series: ", l2_size_series)
+        print("activity_count: ", activity_count)
 
 
 
